@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>·pong</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0d0d0d; /* Slightly deeper black */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #score {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Inter', -apple-system, sans-serif;
+            font-size: 6rem;
+            font-weight: 100;
+            color: rgba(255, 255, 255, 0.02); /* Ghostly watermark */
+            pointer-events: none;
+            user-select: none;
+            letter-spacing: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="score">00 00</div>
+    <canvas id="pong"></canvas>
+
+    <script>
+        const canvas = document.getElementById('pong');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+
+        let width, height;
+        
+        // Massive & Thick Dimensions
+        const paddleWidth = 40;   // Much thicker pads
+        const paddleHeight = 260; // Slightly taller for balance
+        const ballSize = 24;      // Chunkier ball
+        
+        // Fluid, responsive speed
+        const ballSpeed = 4.8;    
+        const paddleSpeed = 7;    
+        const aiEase = 0.06;      
+
+        let playerY, aiY, ball;
+        let playerScore = 0;
+        let aiScore = 0;
+        let keys = {};
+
+        function init() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            playerY = height / 2 - paddleHeight / 2;
+            aiY = height / 2 - paddleHeight / 2;
+            resetBall();
+        }
+
+        function resetBall() {
+            ball = {
+                x: width / 2,
+                y: height / 2,
+                dx: (Math.random() > 0.5 ? 1 : -1) * ballSpeed,
+                dy: (Math.random() - 0.5) * (ballSpeed * 1.5)
+            };
+        }
+
+        window.addEventListener('resize', init);
+        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keyup', e => keys[e.key] = false);
+
+        function update() {
+            // Player Movement
+            if (keys['ArrowUp'] && playerY > 0) playerY -= paddleSpeed;
+            if (keys['ArrowDown'] && playerY < height - paddleHeight) playerY += paddleSpeed;
+
+            // AI Movement
+            let targetY = ball.y - paddleHeight / 2;
+            aiY += (targetY - aiY) * aiEase;
+            aiY = Math.max(0, Math.min(height - paddleHeight, aiY));
+
+            // Ball Physics
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Wall Bounce
+            if (ball.y <= 0 || ball.y >= height - ballSize) ball.dy *= -1;
+
+            const edgeGap = 70;
+
+            // Paddle Collisions (Left)
+            if (ball.x <= edgeGap + paddleWidth && ball.x >= edgeGap && ball.y > playerY - ballSize && ball.y < playerY + paddleHeight) {
+                ball.dx = Math.abs(ball.dx);
+                // Dynamic bounce based on where it hits the paddle
+                let impact = (ball.y + ballSize/2) - (playerY + paddleHeight/2);
+                ball.dy = impact * 0.1;
+            }
+            
+            // Paddle Collisions (Right)
+            if (ball.x >= width - edgeGap - paddleWidth - ballSize && ball.x <= width - edgeGap && ball.y > aiY - ballSize && ball.y < aiY + paddleHeight) {
+                ball.dx = -Math.abs(ball.dx);
+                let impact = (ball.y + ballSize/2) - (aiY + paddleHeight/2);
+                ball.dy = impact * 0.1;
+            }
+
+            // Scoring
+            if (ball.x < -ballSize) {
+                aiScore++;
+                updateScore();
+                resetBall();
+            } else if (ball.x > width + ballSize) {
+                playerScore++;
+                updateScore();
+                resetBall();
+            }
+        }
+
+        function updateScore() {
+            scoreEl.innerText = `${playerScore.toString().padStart(2, '0')} ${aiScore.toString().padStart(2, '0')}`;
+        }
+
+        function draw() {
+            ctx.fillStyle = '#0d0d0d';
+            ctx.fillRect(0, 0, width, height);
+
+            // Subtle vertical center line
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.01)';
+            ctx.fillRect(width / 2 - 1, 0, 2, height);
+
+            // Using soft off-white for elements
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+
+            const edgeGap = 70;
+            // Player
+            ctx.fillRect(edgeGap, playerY, paddleWidth, paddleHeight);
+            // AI
+            ctx.fillRect(width - edgeGap - paddleWidth, aiY, paddleWidth, paddleHeight);
+            // Ball
+            ctx.fillRect(ball.x, ball.y, ballSize, ballSize);
+
+            update();
+            requestAnimationFrame(draw);
+        }
+
+        init();
+        draw();
+    </script>
+</body>
+</html>
